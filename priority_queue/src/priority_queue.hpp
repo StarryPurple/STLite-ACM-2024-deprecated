@@ -14,8 +14,16 @@ template<typename T, class Compare = std::less<T>>
 class priority_queue {
 private:
   struct Node {
-    T *val_ptr = nullptr;
-    Node *child = nullptr, *sibling = nullptr;
+    T *val_ptr;
+    Node *child, *sibling;
+
+    Node(const T &data) {
+      val_ptr = new T(data);
+      child = sibling = nullptr;
+    }
+    ~Node() {
+      delete val_ptr;
+    }
   };
   Node *root_;
   size_t size_;
@@ -23,13 +31,11 @@ private:
 
   void copy_heap(Node *des, Node *src) {
     if(src->child == nullptr) return;
-    des->child = new Node;
-    des->child->val_ptr = new T(*src->child->val_ptr);
+    des->child = new Node(*src->child->val_ptr);
     copy_heap(des->child, src->child);
     Node *cur_src = src->child, *cur_des = des->child;
     while(cur_src->sibling != nullptr) {
-      cur_des->sibling = new Node;
-      cur_des->sibling->val_ptr = new T(*cur_src->sibling->val_ptr);
+      cur_des->sibling = new Node(*cur_src->sibling->val_ptr);
       copy_heap(cur_des->sibling, cur_src->sibling);
       cur_src = cur_src->sibling;
       cur_des = cur_des->sibling;
@@ -38,7 +44,6 @@ private:
   void free_heap(Node *ptr) {
     if(ptr == nullptr) return;
     Node *cur = ptr->child, *del;
-    delete ptr->val_ptr;
     delete ptr;
     while(cur != nullptr) {
       del = cur; cur = cur->sibling;
@@ -73,8 +78,7 @@ private:
 public:
   priority_queue(): size_(0), root_(nullptr) {}
   priority_queue(const priority_queue &other): size_(other.size_) {
-    root_ = new Node;
-    root_->val_ptr = new T(*other.root_->val_ptr);
+    root_ = new Node(*other.root_->val_ptr);
     copy_heap(root_, other.root_);
   }
   priority_queue(priority_queue &&other): root_(other.root_), size_(other.size_) {
@@ -88,8 +92,7 @@ public:
     if(this == &other) return *this;
     clear();
     size_ = other.size_;
-    root_ = new Node;
-    root_->val_ptr = new T(*other.root_->val_ptr);
+    root_ = new Node(*other.root_->val_ptr);
     copy_heap(root_, other.root_);
     return *this;
   }
@@ -109,21 +112,18 @@ public:
   void push(const T &e) {
     if(empty()) {
       size_ = 1;
-      Node *node_ptr = new Node;
-      node_ptr->val_ptr = new T(e);
+      Node *node_ptr = new Node(e);
       root_ = node_ptr;
       return;
     }
     ++size_;
     if(comparer_(*root_->val_ptr, e)) {
-      Node *node_ptr = new Node;
-      node_ptr->val_ptr = new T(e);
+      Node *node_ptr = new Node(e);
       node_ptr->child = root_;
       root_ = node_ptr;
       return;
     }
-    Node *node_ptr = new Node;
-    node_ptr->val_ptr = new T(e);
+    Node *node_ptr = new Node(e);
     node_ptr->sibling = root_->child;
     root_->child = node_ptr;
   }
@@ -134,7 +134,6 @@ public:
       return;
     }
     Node *cur = root_->child;
-    delete root_->val_ptr;
     delete root_;
     root_ = multiple_merge(cur);
     --size_;

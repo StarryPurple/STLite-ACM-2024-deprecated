@@ -32,7 +32,7 @@ public:
 	class const_iterator;
 	class iterator 
 	{
-		friend vector;
+		friend vector<T>;
 
 	// The following code is written for the C++ type_traits library.
 	// Type traits is a C++ feature for describing certain properties of a type.
@@ -133,13 +133,9 @@ public:
 			return !(*this == rhs);
 		}
 	};
-	/**
-	 * TODO
-	 * has same function as iterator, just for a const object.
-	 */
 	class const_iterator 
 	{
-		friend vector;
+		friend vector<T>;
 
 	public:
 		using difference_type = std::ptrdiff_t;
@@ -230,10 +226,6 @@ public:
 		}
 
 	};
-	/**
-	 * TODO Constructs
-	 * At least two: default constructor, copy constructor
-	 */
 	vector(): size_(0), capacity_(2048) {
 		data_ = allocator_.allocate(capacity_);
 	}

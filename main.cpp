@@ -1,121 +1,122 @@
 // #include "vector/src/vector.hpp"
-#include "priority_queue/src/priority_queue.hpp"
-// #include "map/src/map.hpp"
+// #include "priority_queue/src/priority_queue.hpp"
+#include "map/src/map.hpp"
 
 #include <iostream>
-#include <queue>
-#include <ctime>
-#include <cstdlib>
+#include <cassert>
+#include <string>
 
-void TestConstructorAndPush()
-{
-	std::cout << "Testing constructors, destructor and push..." << std::endl;
-	sjtu::priority_queue<int> pq;
-	for (int i = 100; i > 0; --i) {
-		pq.push(i);
-	}
-	while (!pq.empty()) {
-		std::cout << pq.top() << " ";
-		pq.pop();
-	}
-	std::cout << std::endl;
-	for (int i = 1000; i > 100; --i) {
-		pq.push(i);
-	}
-	sjtu::priority_queue<int> pqBack(pq);
-	std::cout << pqBack.size() << std::endl;
-	sjtu::priority_queue<int> pqBB;
-	for (int i = 10; i <= 10000; ++i) {
-		pqBB.push(i);
-	}
-	std::cout << pqBB.size() << std::endl;
-	pqBB = pq;
-	std::cout << pqBB.size() << std::endl;
-}
+class Integer {
+public:
+	static int counter;
+	int val;
 
-void TestSize()
-{
-	std::cout << "Testing size()" << std::endl;
-	sjtu::priority_queue<long long> pq;
-	for (int i = 1; i <= 1000; ++i) {
-		pq.push(rand());
+	Integer(int val) : val(val) {
+		counter++;
 	}
-	std::cout << pq.size() << std::endl;
-}
 
-void TestException()
-{
-	sjtu::priority_queue<int> pq;
-	try {
-		std::cout << pq.top() << std::endl;
-	} catch (...) {
-		std::cout << "Throw correctly." << std::endl;
+	Integer(const Integer &rhs) {
+		val = rhs.val;
+		counter++;
 	}
-}
 
-struct Natural {
-    int x;
+	Integer& operator = (const Integer &rhs) {
+		assert(false);
+	}
 
-    Natural(int _x = 0) { x = _x; }
-
-    friend bool operator<(const Natural &lhs, const Natural &rhs) {
-        if (lhs.x < 0 || rhs.x < 0)
-            throw sjtu::runtime_error();
-        return lhs.x < rhs.x;
-    }
+	~Integer() {
+		counter--;
+	}
 };
 
-void TestCompareException() {
-	std::cout << "Testing compare exception...";
+int Integer::counter = 0;
 
-	sjtu::priority_queue<Natural> pq;
-    static int dat[2000], ans[2000];
-	int pos = 0;
-    for (int i = 1; i <= 1000; ++i) {
-        dat[i] = i;
-		if (rand() % 10 == 0)
-			dat[i] = -i;
-		else ans[++pos] = i;
+class Compare {
+public:
+	bool operator () (const Integer &lhs, const Integer &rhs) const {
+		return lhs.val < rhs.val;
 	}
+};
 
-    for (int i = 1000; i > 1; --i) {
-        unsigned int x = rand();
-        int p = x % (i - 1) + 1;
-        std::swap(dat[i], dat[p]);
-    }
-
-    while (dat[1] < 0) {
-        unsigned int x = rand();
-        int p = x % 1000 + 1;
-        std::swap(dat[1], dat[p]);
-    }
-
-
-    for (int i = 1; i <= 1000; ++i) {
-        try {
-            pq.push(Natural(dat[i]));
-        } catch (sjtu::runtime_error) {
-            if (dat[i] >= 0)
-                return std::cout << std::endl, void();
-        }
-    }
-
-    for (int i = pos; i; --i) {
-        Natural t = pq.top();
-        if (t.x != ans[i])
-                return std::cout << std::endl, void();
-        pq.pop();
-    }
-
-    std::cout << "ok." << std::endl;
-
+void tester(void) {
+	//	test: constructor
+	sjtu::map<Integer, std::string, Compare> map;
+	//	test: empty(), size()
+	assert(map.empty() && map.size() == 0);
+	//	test: operator[], insert()
+	for (int i = 0; i < 100000; ++i) {
+		std::string string = "";
+		for (int number = i; number; number /= 10) {
+			char digit = '0' + number % 10;
+			string = digit + string;
+		}
+		if (i & 1) {
+			map[Integer(i)] = string;
+			auto result = map.insert(sjtu::pair<Integer, std::string>(Integer(i), string));
+			assert(!result.second);
+		} else {
+			auto result = map.insert(sjtu::pair<Integer, std::string>(Integer(i), string));
+			assert(result.second);
+		}
+	}
+	//	test: count(), find(), erase()
+	for (int i = 0; i < 100000; ++i) {
+		if (i > 1896 && i <= 2016) {
+			continue;
+		}
+		assert(map.count(Integer(i)) == 1);
+		assert(map.find(Integer(i)) != map.end());
+		map.erase(map.find(Integer(i)));
+	}
+	//	test: constructor, operator=, clear();
+	for (int i = 0; i < (int)map.size(); ++i) {
+		sjtu::map<Integer, std::string, Compare> copy(map);
+		map.clear();
+		std::cout << map.size() << " " << copy.size() << " ";
+		map = copy;
+		copy.clear();
+		std::cout << map.size() << " " << copy.size() << " ";
+		copy = map;
+		map.clear();
+		std::cout << map.size() << " " << copy.size() << " ";
+		map = copy;
+		copy.clear();
+		std::cout << map.size() << " " << copy.size() << " ";
+	}
+	std::cout << std::endl;
+	//	test: const_iterator, cbegin(), cend(), operator++, at()
+	sjtu::map<Integer, std::string, Compare>::const_iterator const_iterator;
+	const_iterator = map.cbegin();
+	while (const_iterator != map.cend()) {
+		const Integer integer(const_iterator->first);
+		const_iterator++;
+		std::cout << map.at(integer) << " ";
+	}
+	std::cout << std::endl;
+	//	test: iterator, operator--, operator->
+	sjtu::map<Integer, std::string, Compare>::iterator iterator;
+	iterator = map.end();
+	while (true) {
+		sjtu::map<Integer, std::string, Compare>::iterator peek = iterator;
+		if (peek == map.begin()) {
+			std::cout << std::endl;
+			break;
+		}
+		std::cout << (--iterator)->second << " ";
+	}
+	//	test: erase()
+	while (map.begin() != map.end()) {
+		map.erase(map.begin());
+	}
+	assert(map.empty() && map.size() == 0);
+	//	test: operator[]
+	for (int i = 0; i < 100000; ++i) {
+		std::cout << map[Integer(i)];
+	}
+	std::cout << map.size() << std::endl;
 }
 
-int main(int argc, char *const argv[])
-{
-	TestConstructorAndPush();
-	TestSize();
-	TestException();
-    TestCompareException();
-	return 0;
+int main(void) {
+	tester();
+	std::cout << Integer::counter << std::endl;
 }
