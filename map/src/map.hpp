@@ -579,7 +579,7 @@ public:
   // (visiting deleted pointer may occur, resulting in core dump(?).)
   void erase(iterator pos) {
     // I assume this pos is a valid iterator that are in use (and, including end() and rend() for now).
-    if(pos.container != this || empty() || pos == end() ) throw invalid_iterator();
+    if(pos.container != this || empty() || pos.node == void_end_) throw invalid_iterator();
     if(size_ == 1) {
       if(pos.node != root_) throw invalid_iterator();
       delete root_;
@@ -594,11 +594,48 @@ public:
     if(node == right_most_) right_most_ = get_prev(node);
     if(node == left_most_) left_most_ = get_next(node);
     if(node->left != nullptr && node->right != nullptr) {
+      /* This approach works, but it breaks the legality of iterator to prev.
       Node *prev = get_prev(node);
       delete node->value;
       node->value = new value_type(*prev->value);
       if(prev == left_most_) left_most_ = node;
-      node = prev;
+      node = prev; */
+      Node *prev = get_prev(node);
+      if(prev->right == node) {
+        // it means node->left == nullptr
+        prev->right = node->right;
+        node->right->parent = prev;
+        delete node;
+        node = prev;
+      } else if(node->left == prev) {
+        // it means prev->right == nullptr
+        right_rotate(node);
+        prev->right = node->right;
+        node->right->parent = prev;
+        delete node;
+        node = prev;
+      } else {
+        // node and prev has no parent-child relationship
+        if(node->parent != nullptr) {
+          if(node->parent->left == node)
+            node->parent->left = prev;
+          else node->parent->right = prev;
+        }
+        if(prev->parent != nullptr) {
+          if(prev->parent->left == prev)
+            prev->parent->left = node;
+          else prev->parent->right = node;
+        }
+        if(node->left != nullptr) node->left->parent = prev;
+        if(node->right != nullptr) node->right->parent = prev;
+        if(prev->left != nullptr) prev->left->parent = node;
+        if(prev->right != nullptr) prev->right->parent = node;
+
+        std::swap(node->parent, prev->parent);
+        std::swap(node->left, prev->left);
+        std::swap(node->right, prev->right);
+        auto color = node->color; node->color = prev->color; prev->color = color;
+      }
     }
     // no two-child node here.
     bool to_maintain = (node->color == Node::Color::Black);
