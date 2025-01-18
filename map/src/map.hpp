@@ -7,6 +7,7 @@
 #include <iostream>
 
 // only for std::less<T>
+#include <cassert>
 #include <functional>
 #include <cstddef>
 
@@ -137,6 +138,7 @@ private:
       return;
     }
 
+    assert(node->parent != nullptr);
     // node has parent.
     Node *parent = node->parent;
     // Case 2: parent is black.
@@ -601,19 +603,17 @@ public:
       if(prev == left_most_) left_most_ = node;
       node = prev; */
       Node *prev = get_prev(node);
-      if(prev->right == node) {
+      /*if(prev->right == node) {
         // it means node->left == nullptr
         prev->right = node->right;
         node->right->parent = prev;
         delete node;
-        node = prev;
-      } else if(node->left == prev) {
+        node = prev->right;
+      } else */
+      if(node->left == prev) {
         // it means prev->right == nullptr
         right_rotate(node);
-        prev->right = node->right;
-        node->right->parent = prev;
-        delete node;
-        node = prev;
+        // now node->left == nullptr
       } else {
         // node and prev has no parent-child relationship
         if(node->parent != nullptr) {
