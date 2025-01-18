@@ -604,7 +604,7 @@ public:
       node = prev; */
       Node *prev = get_prev(node);
       /*if(prev->right == node) {
-        // it means node->left == nullptr
+        // it means node->left == nullptr, not happening
         prev->right = node->right;
         node->right->parent = prev;
         delete node;
