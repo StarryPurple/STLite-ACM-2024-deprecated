@@ -4,6 +4,8 @@
 #ifndef SJTU_MAP_HPP
 #define SJTU_MAP_HPP
 
+#include <iostream>
+
 // only for std::less<T>
 #include <functional>
 #include <cstddef>
@@ -34,14 +36,9 @@ private:
     ~Node() {
       delete value;
     }
-
-    void switch_color() {
-      color = (color == Color::Red) ? Color::Black : Color::Red;
-    }
   };
 
-  // void_node for end/rend iterator
-  Node *root_, *left_most_, *right_most_, *void_node_;
+  Node *root_, *left_most_, *right_most_, *void_end_, *void_rend_;
   size_t size_;
   Compare lesser_comparer_;
 
@@ -59,14 +56,14 @@ private:
       des->left->parent = des;
       des->left->color = src->left->color;
       if(other.left_most_ == src->left) left_most_ = des->left;
-      copy_tree(des->left, src->left);
+      copy_tree(des->left, src->left, other);
     }
     if(src->right != nullptr) {
       des->right = new Node(*src->right->value);
       des->right->parent = des;
       des->right->color = src->right->color;
       if(other.right_most_ == src->right) right_most_ = des->right;
-      copy_tree(des->right, src->right);
+      copy_tree(des->right, src->right, other);
     }
   }
 
@@ -96,58 +93,186 @@ private:
   // changes node to its next.
   // if node == right_most, changes to void_node.
   // if node == nullptr or node == void_node, (holds) changes it to nullptr.
-  void get_next(Node *node) const {
-    if(node == nullptr) return;
-    if(node == void_node_) {
-      node = nullptr;
-      return;
-    }
-    if(node == right_most_) {
-      node = void_node_;
-      return;
-    }
+  Node* get_next(Node *node) const {
+    if(node == nullptr || node == void_end_) return nullptr;
+    if(node == void_rend_) return left_most_;
+    if(node == right_most_) return void_end_;
     // if node == root here, for node != right_most_, we must have node->right != nullptr.
     // so is in the loop.
     if(node->right == nullptr) {
       while(node->parent->right == node) node = node->parent;
       node = node->parent;
-      return;
+      return node;
     }
     node = node->right;
     while(node->left != nullptr) node = node->left;
+    return node;
   }
   // changes node to its prev.
   // if node == left_most, changes to void_node.
   // if node == nullptr or node == void_node, (holds) changes it to nullptr.
-  void get_prev(Node *node) const {
-    if(node == nullptr) return;
-    if(node == void_node_) {
-      node = nullptr;
-      return;
-    }
-    if(node == left_most_) {
-      node = void_node_;
-      return;
-    }
+  Node* get_prev(Node *node) const {
+    if(node == nullptr || node == void_rend_) return nullptr;
+    if(node == void_end_) return right_most_;
+    if(node == left_most_) return void_rend_;
     // if node == root here, for node != left_most_, we must have node->left != nullptr.
     // so is in the loop.
     if(node->left == nullptr) {
       while(node->parent->left == node) node = node->parent;
       node = node->parent;
-      return;
+      return node;
     }
     node = node->left;
     while(node->right != nullptr) node = node->right;
+    return node;
   }
 
-  void insertion_maintain(Node *&node);
-  void erasure_maintain(Node *&node);
+  void insertion_maintain(Node *node) {
+    // This node should be red.
+    // maintain upwards.
+
+    // Case 1: the new node is the root / tree is previously empty.
+    if(node == root_) {
+      node->color = Node::Color::Black;
+      return;
+    }
+
+    // node has parent.
+    Node *parent = node->parent;
+    // Case 2: parent is black.
+    if(parent->color == Node::Color::Black) return;
+
+    // parent is red.
+    // Case 3: parent is red root.
+    if(parent == root_) {
+      parent->color = Node::Color::Black;
+      return;
+    }
+
+    // node has grandparent (black).
+    Node *grandparent = parent->parent;
+    Node *uncle = (grandparent->left == parent) ? grandparent->right : grandparent->left;
+    // Case 4: uncle node exists, and it's red.
+    if(uncle != nullptr && uncle->color == Node::Color::Red) {
+      parent->color = uncle->color = Node::Color::Black;
+      grandparent->color = Node::Color::Red;
+      insertion_maintain(grandparent);
+      return;
+    }
+
+    // uncle node doesn't exist or is black.
+    // Case 5: the direction of the two parent-child relationship isn't identical.
+    if((grandparent->left == parent) ^ (parent->left == node)) {
+      if(parent->left == node) right_rotate(parent);
+      else left_rotate(parent);
+      std::swap(node, parent);
+      // Go on to case 6.
+    }
+
+    // Case 6: the direction of the two parent-child relationship is identical.
+    parent->color = Node::Color::Black;
+    grandparent->color = Node::Color::Red;
+    if(grandparent->left == parent) right_rotate(grandparent);
+    else left_rotate(grandparent);
+  }
+  void erasure_maintain(Node *node) {
+    // The black length of parent of this node has just been shortened by 1.
+    // the ancestors of this node might be affected.
+    // maintain upwards.
+
+    // Case 1: node is root.
+    if(node == root_) return; // no actual node is affected.
+
+    // node here has parent.
+    Node *parent = node->parent;
+    Node *sibling = (parent->left == node) ? parent->right : parent->left;
+    // Check case: sibling not exist.
+    if(sibling == nullptr) {
+      // at least parent node is not affected.
+      // other ancestors are still in need of maintenance.
+      erasure_maintain(parent);
+      return;
+    }
+
+    // Case 2: sibling node is red.
+    if(sibling->color == Node::Color::Red) {
+      // parent should be black.
+      // children of sibling nodes should be black.
+      parent->color = Node::Color::Red;
+      sibling->color = Node::Color::Black;
+      if(parent->left == sibling) {
+        right_rotate(parent);
+        sibling = parent->left;
+      } else {
+        left_rotate(parent);
+        sibling = parent->right;
+      }
+      // now sibling node is black (or not exist).
+      // continue to further maintenance.
+    }
+
+    // Check case: sibling not exist.
+    if(sibling == nullptr) {
+      // at least parent node is not affected.
+      // other ancestors are still in need of maintenance.
+      erasure_maintain(parent);
+      return;
+    }
+
+    // Case 3: sibling has no red children
+    if((sibling->left == nullptr || sibling->left->color == Node::Color::Black)
+      && (sibling->right == nullptr || sibling->right->color == Node::Color::Black)) {
+      sibling->color = Node::Color::Black;
+      if(parent->color == Node::Color::Red) {
+        parent->color = Node::Color::Black;
+        return;
+      } else {
+        erasure_maintain(parent);
+        return;
+      }
+    }
+
+    // Case 4: sibling has at least one red children
+    // Modify: make sibling's opposite-side (compared to node's side in parent) child is red.
+    if(node == parent->left) {
+      if(sibling->right == nullptr || sibling->right->color == Node::Color::Black) {
+        // sibling->left->color == Red
+        sibling->left->color = Node::Color::Black;
+        sibling->color = Node::Color::Red;
+        right_rotate(sibling);
+        sibling = parent->right;
+      }
+      // now sibling->right->color = Red
+      sibling->color = parent->color;
+      parent->color = Node::Color::Black;
+      sibling->right->color = Node::Color::Black;
+      left_rotate(parent);
+      return;
+    } else {
+      // node == parent_right
+      if(sibling->left == nullptr || sibling->left->color == Node::Color::Black) {
+        // sibling->right->color == Red
+        sibling->right->color = Node::Color::Black;
+        sibling->color = Node::Color::Red;
+        left_rotate(sibling);
+        sibling = parent->left;
+      }
+      // now sibling->left->color = Red
+      sibling->color = parent->color;
+      parent->color = Node::Color::Black;
+      sibling->left->color = Node::Color::Black;
+      right_rotate(parent);
+      return;
+    }
+  }
 
 
 
 public:
   class const_iterator;
   class iterator {
+    friend void sjtu::map<Key, Tp, Compare>::erase(iterator pos);
+    friend const_iterator;
   private:
     const map<Key, Tp, Compare> *container;
     Node *node;
@@ -156,15 +281,18 @@ public:
     iterator(): container(nullptr), node(nullptr) {}
     iterator(const map<Key, Tp, Compare> *the_map, Node *the_node): container(the_map), node(the_node) {}
     iterator(const iterator &other): container(other.container), node(other.node) {}
+    iterator& operator=(const iterator &other) = default;
+    iterator& operator=(iterator &&other) = default;
     iterator operator++(int) {
       iterator res = *this;
       ++(*this);
       return res;
     }
     iterator& operator++() {
-      get_next(node);
-      if(node == nullptr) // previous node = nullptr (default iterator) or node == void_node (end iterator)
+      if(node == nullptr || node == container->void_end_) // empty iterator / end()
         throw invalid_iterator();
+      Node *next = container->get_next(node);
+      node = next;
       return *this;
     }
     iterator operator--(int) {
@@ -173,9 +301,10 @@ public:
       return res;
     }
     iterator& operator--() {
-      get_prev(node);
-      if(node == nullptr) // previous node == nullptr (default iterator) or node == void_node (end iterator)
+      if(node == nullptr || node == container->left_most_) // empty iterator / begin()
         throw invalid_iterator();
+      Node *prev = container->get_prev(node);
+      node = prev;
       return *this;
     }
     bool operator==(const iterator &other) const {
@@ -198,6 +327,7 @@ public:
     }
   };
   class const_iterator {
+    friend iterator;
   private:
     const map<Key, Tp, Compare> *container;
     Node *node;
@@ -207,15 +337,18 @@ public:
     const_iterator(const map<Key, Tp, Compare> *the_map, Node *the_node): container(the_map), node(the_node) {}
     const_iterator(const const_iterator &other): container(other.container), node(other.node) {}
     const_iterator(const iterator &other): container(other.container), node(other.node) {}
+    const_iterator& operator=(const const_iterator &other) = default;
+    const_iterator& operator=(const_iterator &&other) = default;
     const_iterator operator++(int) {
       const_iterator res = *this;
       ++(*this);
       return res;
     }
     const_iterator& operator++() {
-      get_next(node);
-      if(node == nullptr) // previous node = nullptr (default iterator) or node == void_node (end iterator)
+      if(node == nullptr || node == container->void_end_) // empty iterator / cend()
         throw invalid_iterator();
+      Node *next = container->get_next(node);
+      node = next;
       return *this;
     }
     const_iterator operator--(int) {
@@ -224,9 +357,10 @@ public:
       return res;
     }
     const_iterator& operator--() {
-      get_prev(node);
-      if(node == nullptr) // previous node == nullptr (default iterator) or node == void_node (end iterator)
+      if(node == nullptr || node == container->left_most_) // empty iterator / cbegin()
         throw invalid_iterator();
+      Node *prev = container->get_prev(node);
+      node = prev;
       return *this;
     }
     bool operator==(const iterator &other) const {
@@ -249,8 +383,10 @@ public:
     }
   };
 
-  map(): root_(nullptr), void_node_(new Node), size_(0) {
-    root_ = left_most_ = right_most_ = void_node_;
+  map(): root_(nullptr), void_end_(new Node), void_rend_(new Node), size_(0) {
+    root_ = nullptr;
+    left_most_ = void_end_;
+    right_most_ = void_rend_;
   }
   map(const map &other): map() {
     if(other.empty()) return;
@@ -266,14 +402,17 @@ public:
     root_ = other.root_;
     left_most_ = other.left_most_;
     right_most_ = other.right_most_;
-    void_node_ = other.right_most_;
+    void_end_ = other.void_end_;
+    void_rend_ = other.void_rend_;
   }
   ~map() {
-    if(void_node_ == nullptr) return; // rvalue-moved
+    if(void_end_ == nullptr) return; // rvalue-moved
     clear();
-    delete void_node_;
+    delete void_end_;
+    delete void_rend_;
   }
   map& operator=(const map &other) {
+    if(this == &other) return *this;
     clear();
     if(other.empty()) return *this;
     size_ = other.size_;
@@ -285,12 +424,14 @@ public:
     return *this;
   }
   map& operator=(map &&other) {
+    if(this == &other) return *this;
     clear();
     size_ = other.size_;
     root_ = other.root_;
     left_most_ = other.left_most_;
     right_most_ = other.right_most_;
-    void_node_ = other.right_most_;
+    void_end_ = other.void_end_;
+    void_rend_ = other.void_rend_;
     return *this;
   }
   // when empty(), begin() == end().
@@ -298,20 +439,22 @@ public:
     return iterator(this, left_most_);
   }
   iterator end() {
-    return iterator(this, void_node_);
+    return iterator(this, void_end_);
   }
   // when empty(), cbegin() == cend().
-  const_iterator cbegin() {
+  const_iterator cbegin() const {
     return const_iterator(this, left_most_);
   }
-  const_iterator cend() {
-    return const_iterator(this, void_node_);
+  const_iterator cend() const {
+    return const_iterator(this, void_end_);
   }
   void clear() {
     if(empty()) return;
     size_ = 0;
     clear_tree(root_);
-    root_ = left_most_ = right_most_ = void_node_;
+    root_ = nullptr;
+    left_most_ = void_end_;
+    right_most_ = void_rend_;
   }
   size_t size() const {
     return size_;
@@ -363,7 +506,7 @@ public:
       "The type of value (Tp) should be default constructible if you want to use non-const operator[]");
     if(empty()) {
       size_ = 1;
-      root_ = left_most_ = right_most_ = new Node(std::make_pair(key, Tp()));
+      root_ = left_most_ = right_most_ = new Node(value_type(key, Tp()));
       return root_->value->second;
     }
     Node *node = root_, *parent = nullptr;
@@ -380,7 +523,8 @@ public:
         is_left = false;
       } else return node->value->second;
     }
-    Node *res = new Node(std::make_pair(key, Tp()));
+    ++size_;
+    Node *res = new Node(value_type(key, Tp()));
     res->parent = parent;
     if(is_left) {
       parent->left = res;
@@ -402,7 +546,7 @@ public:
     if(empty()) {
       size_ = 1;
       root_ = left_most_ = right_most_ = new Node(value);
-      return std::make_pair(iterator(this, root_), true);
+      return pair<iterator, bool>(iterator(this, root_), true);
     }
     Node *node = root_, *parent = nullptr;
     bool is_left = true;
@@ -416,8 +560,9 @@ public:
         parent = node;
         node = node->right;
         is_left = false;
-      } else return std::make_pair(iterator(this, node), false);
+      } else return pair<iterator, bool>(iterator(this, node), false);
     }
+    ++size_;
     Node *res = new Node(value);
     res->parent = parent;
     if(is_left) {
@@ -428,9 +573,70 @@ public:
       if(parent == right_most_) right_most_ = res;
     }
     insertion_maintain(res);
-    return std::make_pair(iterator(this, res), true);
+    return pair<iterator, bool>(iterator(this, res), true);
   }
-  void erase(iterator pos);
+  // may throw invalid_iterator if invalidation is detected.
+  // (visiting deleted pointer may occur, resulting in core dump(?).)
+  void erase(iterator pos) {
+    // I assume this pos is a valid iterator that are in use (and, including end() and rend() for now).
+    if(pos.container != this || empty() || pos == end() ) throw invalid_iterator();
+    if(size_ == 1) {
+      if(pos.node != root_) throw invalid_iterator();
+      delete root_;
+      root_ = nullptr;
+      left_most_ = void_end_;
+      right_most_ = void_rend_;
+      size_ = 0;
+      return;
+    }
+    --size_;
+    Node *node = pos.node;
+    if(node == right_most_) right_most_ = get_prev(node);
+    if(node == left_most_) left_most_ = get_next(node);
+    if(node->left != nullptr && node->right != nullptr) {
+      Node *prev = get_prev(node);
+      delete node->value;
+      node->value = new value_type(*prev->value);
+      if(prev == left_most_) left_most_ = node;
+      node = prev;
+    }
+    // no two-child node here.
+    bool to_maintain = (node->color == Node::Color::Black);
+    if(node->left == nullptr && node->right == nullptr) {
+      // discard it.
+      Node *parent = node->parent; // definitely not nullptr, for size_ == 1 case has been handled.
+      if(to_maintain) {
+        // temporarily use a new nil node whose parent is "parent".
+        Node *helper_node = new Node;
+        helper_node->parent = parent;
+        if(parent->left == node) {
+          parent->left = helper_node;
+          erasure_maintain(helper_node);
+          parent->left = nullptr;
+        } else {
+          parent->right = helper_node;
+          erasure_maintain(helper_node);
+          parent->right = nullptr;
+        }
+        helper_node->parent = nullptr;
+        delete helper_node;
+      } else {
+        if(parent->left == node) parent->left = nullptr;
+        else parent->right = nullptr;
+      }
+      delete node;
+      return;
+    }
+    Node *parent = node->parent; // may be nullptr if node == root_
+    Node *child = (node->left == nullptr) ? node->right : node->left; // only one side is not nullptr.
+    if(parent == nullptr) root_ = child;
+    else if(parent->left == node) parent->left = child;
+    else parent->right = child;
+    child->parent = parent;
+    child->color = node->color; // important?
+    erasure_maintain(child);
+    delete node;
+  }
 };
 }
 
