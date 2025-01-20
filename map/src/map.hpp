@@ -608,47 +608,39 @@ public:
     if(node == right_most_) right_most_ = get_prev(node);
     if(node == left_most_) left_most_ = get_next(node);
     if(node->left != nullptr && node->right != nullptr) {
+      Node *prev = get_prev(node);
       // This approach works, but it breaks the legality of iterator to prev.
       /*
-      Node *prev = get_prev(node);
       delete node->value;
       node->value = new value_type(*prev->value);
       if(prev == left_most_) left_most_ = node;
       node = prev;
       */
-      Node *prev = get_prev(node);
-      // prev->right == node means node->left == nullptr, which is contrary to the entrance condition.
       if(node->left == prev) {
-        // it means prev->right == nullptr
+        // prev->right == nullptr
         right_rotate(node);
         // now node->left == nullptr
       } else {
-        // node and prev has no parent-child relationship
-        // swapping value of node and prev.
         Node *node_parent = node->parent, *node_left = node->left, *node_right = node->right;
         Node *prev_parent = prev->parent, *prev_left = prev->left, *prev_right = prev->right;
 
-        bool is_node_left_child = (node_parent->left == node);
-        bool is_prev_left_child = (prev_parent->left == prev);
-
         node->parent = prev_parent; node->left = prev_left; node->right = prev_right;
         prev->parent = node_parent; prev->left = node_left; prev->right = node_right;
-
         auto color = node->color; node->color = prev->color; prev->color = color;
 
         if(node_parent != nullptr) {
-          if(is_node_left_child) node_parent->left = prev;
-          else node_right = prev;
+          if(node_parent->left == node) node_parent->left = prev;
+          else node_parent->right = prev;
         }
         if(node_left != nullptr) node_left->parent = prev;
         if(node_right != nullptr) node_right->parent = prev;
         if(prev_parent != nullptr) {
-          if(is_prev_left_child) prev_parent->left = node;
+          if(prev_parent->left == prev) prev_parent->left = node;
           else prev_parent->right = node;
         }
         if(prev_left != nullptr) prev_left->parent = node;
         if(prev_right != nullptr) prev_right->parent = node;
-        // after erasure the order of the tree will come back true.
+        if(root_ == node) root_ = prev; // Don't forget this.
       }
       // now (node->left == nullptr || node->right == nullptr) is true.
     }
