@@ -4,10 +4,6 @@
 #ifndef SJTU_MAP_HPP
 #define SJTU_MAP_HPP
 
-#include <iostream>
-#include <map>
-#include <cassert>
-
 // only for std::less<T>
 #include <functional>
 #include <cstddef>
