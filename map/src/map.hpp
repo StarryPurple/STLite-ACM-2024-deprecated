@@ -21,22 +21,16 @@ private:
   struct Node {
     enum class Color { Red, Black };
 
-    Node *parent, *left, *right;
-    value_type *value;
+    Node *parent {}, *left {}, *right {};
+    value_type value;
     Color color;
 
-    Node(): parent(nullptr), left(nullptr), right(nullptr), value(nullptr), color(Color::Red) {}
-    Node(const value_type &val): Node() {
-      value = new value_type(val);
-    }
+    Node(const value_type &value_): value(value_), color(Color::Red) {}
     Node(const Node &other) = delete;
     Node(Node &&other) = delete;
-    ~Node() {
-      delete value;
-    }
   };
 
-  Node *root_, *left_most_, *right_most_, *void_node_;
+  Node *root_, *left_most_, *right_most_;
   size_t size_;
   Compare lesser_comparer_;
 
@@ -62,14 +56,14 @@ private:
   void copy_tree(Node *des, Node *src, const map &other) {
     // src already copied to des
     if(src->left != nullptr) {
-      des->left = new Node(*src->left->value);
+      des->left = new Node(src->left->value);
       des->left->parent = des;
       des->left->color = src->left->color;
       if(other.left_most_ == src->left) left_most_ = des->left;
       copy_tree(des->left, src->left, other);
     }
     if(src->right != nullptr) {
-      des->right = new Node(*src->right->value);
+      des->right = new Node(src->right->value);
       des->right->parent = des;
       des->right->color = src->right->color;
       if(other.right_most_ == src->right) right_most_ = des->right;
@@ -101,12 +95,9 @@ private:
   }
 
   // changes node to its next.
-  // if node == right_most, changes to void_node.
-  // if node == nullptr or node == void_node, (holds) changes it to nullptr.
   Node* get_next(Node *node) const {
-    if(node == nullptr) return nullptr;
-    if(node == void_node_) return left_most_;
-    if(node == right_most_) return void_node_;
+    if(node == nullptr) return left_most_;
+    if(node == right_most_) return nullptr;
     // if node == root here, for node != right_most_, we must have node->right != nullptr.
     // so is in the loop.
     if(node->right == nullptr) {
@@ -119,12 +110,9 @@ private:
     return node;
   }
   // changes node to its prev.
-  // if node == left_most, changes to void_node.
-  // if node == nullptr or node == void_node, (holds) changes it to nullptr.
   Node* get_prev(Node *node) const {
-    if(node == nullptr) return nullptr;
-    if(node == void_node_) return right_most_;
-    if(node == left_most_) return void_node_;
+    if(node == nullptr) return right_most_;
+    if(node == left_most_) return nullptr;
     // if node == root here, for node != left_most_, we must have node->left != nullptr.
     // so is in the loop.
     if(node->left == nullptr) {
@@ -288,7 +276,7 @@ public:
     Node *node;
 
   public:
-    iterator(): container(nullptr), node(nullptr) {}
+    iterator(): container(nullptr), node(nullptr) {} // default iterator as end()
     iterator(const map<Key, Tp, Compare> *the_map, Node *the_node): container(the_map), node(the_node) {}
     iterator(const iterator &other): container(other.container), node(other.node) {}
     iterator& operator=(const iterator &other) = default;
@@ -299,10 +287,9 @@ public:
       return res;
     }
     iterator& operator++() {
-      if(node == nullptr || node == container->void_node_) // empty iterator / end()
+      if(node == nullptr) // end()
         throw invalid_iterator();
       Node *next = container->get_next(node);
-      if(next == nullptr) throw invalid_iterator();
       node = next;
       return *this;
     }
@@ -312,10 +299,9 @@ public:
       return res;
     }
     iterator& operator--() {
-      if(node == nullptr || node == container->left_most_) // empty iterator / begin()
+      if(node == container->left_most_) // begin()
         throw invalid_iterator();
       Node *prev = container->get_prev(node);
-      if(prev == nullptr) throw invalid_iterator();
       node = prev;
       return *this;
     }
@@ -332,7 +318,7 @@ public:
       return !(*this == other);
     }
     value_type& operator*() const {
-      return *node->value;
+      return node->value;
     }
     value_type* operator->() const {
       return &*(*this);
@@ -345,7 +331,7 @@ public:
     Node *node;
 
   public:
-    const_iterator(): container(nullptr), node(nullptr) {}
+    const_iterator(): container(nullptr), node(nullptr) {} // default iterator as cend()
     const_iterator(const map<Key, Tp, Compare> *the_map, Node *the_node): container(the_map), node(the_node) {}
     const_iterator(const const_iterator &other): container(other.container), node(other.node) {}
     const_iterator(const iterator &other): container(other.container), node(other.node) {}
@@ -357,10 +343,9 @@ public:
       return res;
     }
     const_iterator& operator++() {
-      if(node == nullptr || node == container->void_node_) // empty iterator / cend()
+      if(node == nullptr) // cend()
         throw invalid_iterator();
       Node *next = container->get_next(node);
-      if(next == nullptr) throw invalid_iterator();
       node = next;
       return *this;
     }
@@ -370,10 +355,9 @@ public:
       return res;
     }
     const_iterator& operator--() {
-      if(node == nullptr || node == container->left_most_) // empty iterator / cbegin()
+      if(node == container->left_most_) // cbegin()
         throw invalid_iterator();
       Node *prev = container->get_prev(node);
-      if(prev == nullptr) throw invalid_iterator();
       node = prev;
       return *this;
     }
@@ -390,21 +374,21 @@ public:
       return !(*this == other);
     }
     const value_type& operator*() const {
-      return *node->value;
+      return node->value;
     }
     const value_type* operator->() const {
       return &*(*this);
     }
   };
 
-  map(): root_(nullptr), void_node_(new Node), size_(0) {
+  map(): root_(nullptr), size_(0) {
     root_ = nullptr;
-    left_most_ = right_most_ = void_node_;
+    left_most_ = right_most_ = nullptr;
   }
   map(const map &other): map() {
     if(other.empty()) return;
     size_ = other.size_;
-    root_ = new Node(*other.root_->value);
+    root_ = new Node(other.root_->value);
     root_->color =  other.root_->color;
     if(other.left_most_ == other.root_) left_most_ = root_;
     if(other.right_most_ == other.root_) right_most_ = root_;
@@ -415,20 +399,16 @@ public:
     root_ = other.root_;
     left_most_ = other.left_most_;
     right_most_ = other.right_most_;
-    void_node_ = other.void_node_;
-    other.void_node_ = nullptr;
   }
   ~map() {
-    if(void_node_ == nullptr) return; // rvalue-moved
     clear();
-    delete void_node_;
   }
   map& operator=(const map &other) {
     if(this == &other) return *this;
     clear();
     if(other.empty()) return *this;
     size_ = other.size_;
-    root_ = new Node(*other.root_->value);
+    root_ = new Node(other.root_->value);
     root_->color =  other.root_->color;
     if(other.left_most_ == other.root_) left_most_ = root_;
     if(other.right_most_ == other.root_) right_most_ = root_;
@@ -442,8 +422,6 @@ public:
     root_ = other.root_;
     left_most_ = other.left_most_;
     right_most_ = other.right_most_;
-    void_node_ = other.void_node_;
-    other.void_node_ = nullptr;
     return *this;
   }
   // when empty(), begin() == end().
@@ -451,21 +429,21 @@ public:
     return iterator(this, left_most_);
   }
   iterator end() {
-    return iterator(this, void_node_);
+    return iterator(this, nullptr);
   }
   // when empty(), cbegin() == cend().
   const_iterator cbegin() const {
     return const_iterator(this, left_most_);
   }
   const_iterator cend() const {
-    return const_iterator(this, void_node_);
+    return const_iterator(this, nullptr);
   }
   void clear() {
     if(empty()) return;
     clear_tree(root_);
     size_ = 0;
     root_ = nullptr;
-    left_most_ = right_most_ = void_node_;
+    left_most_ = right_most_ = nullptr;
   }
   size_t size() const {
     return size_;
@@ -478,9 +456,9 @@ public:
     if(empty()) return end();
     Node *node = root_;
     while(node != nullptr) {
-      if(lesser_comparer_(key, node->value->first))
+      if(lesser_comparer_(key, node->value.first))
         node = node->left;
-      else if(lesser_comparer_(node->value->first, key))
+      else if(lesser_comparer_(node->value.first, key))
         node = node->right;
       else return iterator(this, node);
     }
@@ -490,9 +468,9 @@ public:
     if(empty()) return cend();
     Node *node = root_;
     while(node != nullptr) {
-      if(lesser_comparer_(key, node->value->first))
+      if(lesser_comparer_(key, node->value.first))
         node = node->left;
-      else if(lesser_comparer_(node->value->first, key))
+      else if(lesser_comparer_(node->value.first, key))
         node = node->right;
       else return const_iterator(this, node);
     }
@@ -518,21 +496,21 @@ public:
     if(empty()) {
       size_ = 1;
       root_ = left_most_ = right_most_ = new Node(value_type(key, Tp()));
-      return root_->value->second;
+      return root_->value.second;
     }
     Node *node = root_, *parent = nullptr;
     bool is_left = true;
     // at lease one comparison would be done.
     while(node != nullptr) {
-      if(lesser_comparer_(key, node->value->first)) {
+      if(lesser_comparer_(key, node->value.first)) {
         parent = node;
         node = node->left;
         is_left = true;
-      } else if(lesser_comparer_(node->value->first, key)) {
+      } else if(lesser_comparer_(node->value.first, key)) {
         parent = node;
         node = node->right;
         is_left = false;
-      } else return node->value->second;
+      } else return node->value.second;
     }
     ++size_;
     Node *res = new Node(value_type(key, Tp()));
@@ -545,7 +523,7 @@ public:
       if(parent == right_most_) right_most_ = res;
     }
     insertion_maintain(res);
-    return res->value->second;
+    return res->value.second;
   }
   // throws index_out_of_bound if key doesn't exist.
   const Tp& operator[](const Key &key) const {
@@ -563,11 +541,11 @@ public:
     bool is_left = true;
     // at lease one comparison would be done.
     while(node != nullptr) {
-      if(lesser_comparer_(value.first, node->value->first)) {
+      if(lesser_comparer_(value.first, node->value.first)) {
         parent = node;
         node = node->left;
         is_left = true;
-      } else if(lesser_comparer_(node->value->first, value.first)) {
+      } else if(lesser_comparer_(node->value.first, value.first)) {
         parent = node;
         node = node->right;
         is_left = false;
@@ -595,7 +573,7 @@ public:
       if(pos.node != root_) throw invalid_iterator();
       delete root_;
       root_ = nullptr;
-      left_most_ = right_most_ = void_node_;
+      left_most_ = right_most_ = nullptr;
       size_ = 0;
       return;
     }
@@ -647,7 +625,7 @@ public:
       Node *parent = node->parent; // definitely not nullptr, for size_ == 1 case has been handled.
       if(to_maintain) {
         // temporarily use a new nil node whose parent is "parent".
-        Node *helper_node = new Node;
+        Node *helper_node = new Node(parent->value);
         helper_node->color = Node::Color::Black; // somehow needless
         helper_node->parent = parent;
         if(parent->left == node) {

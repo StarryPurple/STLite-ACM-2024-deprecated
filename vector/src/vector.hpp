@@ -6,437 +6,626 @@
 #include <climits>
 #include <cstddef>
 
-namespace sjtu 
-{
-/**
- * a data container like std::vector
- * store data in a successive memory and support random access.
- */
-template<typename T>
-class vector 
-{
-private:
-	T *data_;
-	size_t size_, capacity_;
-	std::allocator<T> allocator_;
-	const bool is_move_constructable_ = std::is_move_constructible<T>::value;
-
+namespace sjtu {
+template <class Tp>
+class vector {
 public:
-	/**
-	 * a type for actions of the elements of a vector, and you should write
-	 *   a class named const_iterator with same interfaces.
-	 */
-	/**
-	 * you can see RandomAccessIterator at CppReference for help.
-	 */
-	class const_iterator;
-	class iterator 
-	{
-		friend vector<T>;
+  class const_iterator;
+  class iterator {
+    friend vector<Tp>;
+    friend const_iterator;
 
-	// The following code is written for the C++ type_traits library.
-	// Type traits is a C++ feature for describing certain properties of a type.
-	// For instance, for an iterator, iterator::value_type is the type that the 
-	// iterator points to. 
-	// STL algorithms and containers may use these type_traits (e.g. the following 
-	// typedef) to work properly. In particular, without the following code, 
-	// @code{std::sort(iter, iter1);} would not compile.
-	// See these websites for more information:
-	// https://en.cppreference.com/w/cpp/header/type_traits
-	// About value_type: https://blog.csdn.net/u014299153/article/details/72419713
-	// About iterator_category: https://en.cppreference.com/w/cpp/iterator
-	public:
-		using difference_type = std::ptrdiff_t;
-		using value_type = T;
-		using pointer = T*;
-		using reference = T&;
-		using iterator_category = std::output_iterator_tag;
+  public:
+    using differnce_type = std::ptrdiff_t;
+    using value_type = Tp;
+    using pointer = Tp*;
+    using reference = Tp&;
+    using iterator_category = std::output_iterator_tag;
 
+    iterator();
+    iterator(const iterator &);
+    iterator& operator=(const iterator &);
+    iterator operator+(const differnce_type &) const;
+    iterator operator-(const differnce_type &) const;
+    // throw invalid_iterator if two containers are not same
+    differnce_type operator-(const iterator &) const;
+    iterator& operator+=(const differnce_type &);
+    iterator& operator-=(const differnce_type &);
+    iterator operator++(int);
+    iterator& operator++();
+    iterator operator--(int);
+    iterator& operator--();
+    Tp& operator*() const;
+    Tp* operator->() const;
+    bool operator==(const iterator &) const;
+    bool operator==(const const_iterator &) const;
+    bool operator!=(const iterator &) const;
+    bool operator!=(const const_iterator &) const;
 
-	private:
-		const vector *container_ptr_;
-		size_t index_;
-	public:
-		iterator(const vector &container, const size_t &index)
-			: container_ptr_(&container), index_(index) {}
-		iterator(const vector *container_ptr, const size_t &index)
-			: container_ptr_(container_ptr), index_(index) {}
-		iterator(const iterator &other): container_ptr_(other.container_ptr_), index_(other.index_) {}
-		// iterator(iterator &&other);
-		iterator& operator=(const iterator &other) {
-			if(this == &other) return *this;
-			container_ptr_ = other.container_ptr_;
-			index_ = other.index_;
-			return *this;
-		}
-		// iterator& operator=(iterator &&other);
-		iterator operator+(const difference_type &n) const {
-			if(n < 0) return *this - (-n);
-			if(index_ + n > container_ptr_->size_) throw invalid_iterator();
-			return {container_ptr_, index_ + n};
-		}
-		iterator operator-(const difference_type &n) const {
-			if(n < 0) return *this + (-n);
-			if(index_ < n) throw index_out_of_bound();
-			return {container_ptr_, index_ - n};
-		}
-		// return the distance between two iterators,
-		// if these two iterators point to different vectors, throw invaild_iterator.
-		difference_type operator-(const iterator &rhs) const {
-			if(container_ptr_ != rhs.container_ptr_) throw invalid_iterator();
-			return static_cast<difference_type>(index_)- static_cast<difference_type>(rhs.index_);
-		}
-		iterator& operator+=(const difference_type &n) {
-			if(n < 0) return *this -= (-n);
-			if(index_ + n > container_ptr_->size_) throw invalid_iterator();
-			index_ += n;
-			return *this;
-		}
-		iterator& operator-=(const difference_type &n) {
-			if(n < 0) return *this += (-n);
-			if(index_ < n) throw invalid_iterator();
-			index_ -= n;
-			return *this;
-		}
-		iterator operator++(int) {
-			iterator tmp = *this;
-			*this += 1;
-			return tmp;
-		}
-		iterator& operator++() {
-			return *this += 1;
-		}
-		iterator operator--(int) {
-			iterator tmp = *this;
-			*this -= 1;
-			return tmp;
-		}
-		iterator& operator--() {
-			return *this -= 1;
-		}
-		T& operator*() const {
-			return container_ptr_->data_[index_];
-		}
-		T* operator->() const {
-			return &(**this);
-		}
-		bool operator==(const iterator &rhs) const {
-			return *this - rhs == 0;
-		}
-		bool operator==(const const_iterator &rhs) const {
-			return container_ptr_ == rhs.container_ptr_ && index_ == rhs.index_;
-		}
-		bool operator!=(const iterator &rhs) const {
-			return !(*this == rhs);
-		}
-		bool operator!=(const const_iterator &rhs) const {
-			return !(*this == rhs);
-		}
-	};
-	class const_iterator 
-	{
-		friend vector<T>;
+  private:
+    const vector<Tp> *_container;
+    size_t _index;
+    iterator(const vector<Tp> *container, const size_t &index);
+  };
+  class const_iterator {
+    friend vector<Tp>;
+    friend iterator;
 
-	public:
-		using difference_type = std::ptrdiff_t;
-		using value_type = T;
-		using pointer = T*;
-		using reference = T&;
-		using iterator_category = std::output_iterator_tag;
+  public:
+    using differnce_type = std::ptrdiff_t;
+    using value_type = Tp;
+    using pointer = Tp*;
+    using reference = Tp&;
+    using iterator_category = std::output_iterator_tag;
 
-	
-	private:
-		const vector *container_ptr_;
-		size_t index_;
-	public:
-		const_iterator(const vector &container, const size_t &index)
-		  : container_ptr_(&container), index_(index) {}
-		const_iterator(const vector *container_ptr, const size_t &index)
-			: container_ptr_(container_ptr), index_(index) {}
-		const_iterator(const const_iterator &other): container_ptr_(other.container_ptr_), index_(other.index_) {}
-		// const_iterator(const_iterator &&other);
-		const_iterator& operator=(const const_iterator &other) {
-			if(this == &other) return *this;
-			container_ptr_ = other.container_ptr_;
-			index_ = other.index_;
-			return *this;
-		}
-		// const_iterator& operator=(const_iterator &&other);
-		const_iterator operator+(const difference_type &n) const {
-			if(n < 0) return *this - (-n);
-			if(index_ + n > container_ptr_->size_) throw invalid_iterator();
-			return {container_ptr_, index_ + n};
-		}
-		const_iterator operator-(const difference_type &n) const {
-			if(n < 0) return *this + (-n);
-			if(index_ < n) throw invalid_iterator();
-			return {container_ptr_, index_ - n};
-		}
-		// return the distance between two iterators,
-		// if these two iterators point to different vectors, throw invaild_iterator.
-		difference_type operator-(const const_iterator &rhs) const {
-			if(container_ptr_ != rhs.container_ptr_) throw invalid_iterator();
-			return static_cast<difference_type>(index_)- static_cast<difference_type>(rhs.index_);
-		}
-		const_iterator& operator+=(const difference_type &n) {
-			if(n < 0) return *this -= (-n);
-			if(index_ + n > container_ptr_->size_) throw invalid_iterator();
-			index_ += n;
-			return *this;
-		}
-		const_iterator& operator-=(const difference_type &n) {
-			if(n < 0) return *this += (-n);
-			if(index_ < n) throw index_out_of_bound();
-			index_ -= n;
-			return *this;
-		}
-		const_iterator operator++(int) {
-			iterator tmp = *this;
-			*this += 1;
-			return tmp;
-		}
-		const_iterator& operator++() {
-			return *this += 1;
-		}
-		const_iterator operator--(int) {
-			iterator tmp = *this;
-			*this -= 1;
-			return tmp;
-		}
-		const_iterator& operator--() {
-			return *this -= 1;
-		}
-		const T& operator*() const {
-			return container_ptr_->data_[index_];
-		}
-		const T* operator->() const {
-			return &(**this);
-		}
-		bool operator==(const const_iterator &rhs) const {
-			return *this - rhs == 0;
-		}
-		bool operator==(const iterator &rhs) const {
-			return container_ptr_ == rhs.container_ptr_ && index_ == rhs.index_;
-		}
-		bool operator!=(const const_iterator &rhs) const {
-			return !(*this == rhs);
-		}
-		bool operator!=(const iterator &rhs) const {
-			return !(*this == rhs);
-		}
+    const_iterator();
+    const_iterator(const const_iterator &);
+    const_iterator(const iterator &);
+    const_iterator& operator=(const const_iterator &);
+    const_iterator operator+(const differnce_type &) const;
+    const_iterator operator-(const differnce_type &) const;
+    // throw invalid_iterator if two containers are not same
+    differnce_type operator-(const const_iterator &) const;
+    const_iterator& operator+=(const differnce_type &);
+    const_iterator& operator-=(const differnce_type &);
+    const_iterator operator++(int);
+    const_iterator& operator++();
+    const_iterator operator--(int);
+    const_iterator& operator--();
+    const Tp& operator*() const;
+    const Tp* operator->() const;
+    bool operator==(const const_iterator &) const;
+    bool operator==(const iterator &) const;
+    bool operator!=(const const_iterator &) const;
+    bool operator!=(const iterator &) const;
 
-	};
-	vector(): size_(0), capacity_(2048) {
-		data_ = allocator_.allocate(capacity_);
-	}
-	vector(const vector &other) {
-		size_ = other.size_;
-		capacity_ = other.capacity_;
-		data_ = allocator_.allocate(capacity_);
-		for(size_t i = 0; i < size_; ++i)
-			new (data_ + i) T(other.data_[i]);
-	}
-	vector(vector &&other) {
-		size_ = other.size_;
-		capacity_ = other.capacity_;
-		data_ = other.data_;
-		other.data_ = nullptr;
-	}
-	~vector() {
-		clear();
-		allocator_.deallocate(data_, capacity_);
-		capacity_ = 0;
-	}
-	vector &operator=(const vector &other) {
-		if(this == &other) return *this;
-		clear();
-		reserve(other.capacity_);
-		size_ = other.size_;
-		for(size_t i = 0; i < size_; ++i)
-			new (data_ + i) T(other.data_[i]);
-		return *this;
-	}
-	vector &operator=(vector &&other) {
-		if(this == &other) return *this;
-		size_ = other.size_;
-		capacity_ = other.capacity_;
-		data_ = other.data_;
-		other.size_ = 0;
-		other.capacity_ = 0;
-		other.data_ = nullptr;
-		return *this;
-	}
-	/**
-	 * assigns specified element with bounds checking
-	 * throw index_out_of_bound if pos is not in [0, size)
-	 */
-	T& at(const size_t &pos) {
-		if(pos >= size_) throw index_out_of_bound();
-		return data_[pos];
-	}
-	const T& at(const size_t &pos) const {
-		if(pos >= size_) throw index_out_of_bound();
-		return data_[pos];
-	}
-	/**
-	 * assigns specified element with bounds checking
-	 * throw index_out_of_bound if pos is not in [0, size)
-	 * !!! Pay attentions
-	 *   In STL this operator does not check the boundary but I want you to do.
-	 */
-	T& operator[](const size_t &pos) {
-		if(pos >= size_) throw index_out_of_bound();
-		return data_[pos];
-	}
-	const T& operator[](const size_t &pos) const {
-		if(pos >= size_) throw index_out_of_bound();
-		return data_[pos];
-	}
-	/**
-	 * access the first element.
-	 * throw container_is_empty if size == 0
-	 */
-	const T & front() const {
-		if(empty()) throw container_is_empty();
-		return data_[0];
-	}
-	/**
-	 * access the last element.
-	 * throw container_is_empty if size == 0
-	 */
-	const T & back() const {
-		if(empty()) throw container_is_empty();
-		return data_[size_ - 1];
-	}
-	iterator begin() {
-		return {*this, 0};
-	}
-	const_iterator cbegin() const {
-		return {*this, 0};
-	}
-	iterator end() {
-		return {*this, size_};
-	}
-	const_iterator cend() const {
-		return {*this, size_};
-	}
-	bool empty() const {
-		return size_ == 0;
-	}
-	size_t size() const {
-		return size_;
-	}
-	void clear() {
-		for(size_t i = 0; i < size_; ++i)
-			data_[i].~T();
-		size_ = 0;
-	}
-	void reserve(size_t capacity) {
-		if(capacity_ >= capacity) return;
-		T *new_data = allocator_.allocate(capacity);
-		if(is_move_constructable_) {
-			for(size_t i = 0; i < size_; ++i) {
-				new (new_data + i) T(std::move(data_[i]));
-				data_[i].~T();
-			}
-		} else {
-			for(size_t i = 0; i < size_; ++i) {
-				new (new_data + i) T(data_[i]);
-				data_[i].~T();
-			}
-		}
-		allocator_.deallocate(data_, capacity_);
+  private:
+    const vector<Tp> *_container;
+    size_t _index;
+    const_iterator(const vector<Tp> *container, const size_t &index);
+  };
 
-		data_ = new_data;
-		capacity_ = capacity;
-	}
-	/**
-	 * inserts value before pos
-	 * returns an iterator pointing to the inserted value.
-	 */
-	iterator insert(iterator pos, const T &value) {
-		size_t index = pos.index_;
-		if(index > size_) throw index_out_of_bound();
-		if(size_ == capacity_) reserve(capacity_ << 1); // new capacity may be larger than size_t_max.
-		++size_;
-		if(is_move_constructable_) {
-			for(size_t i = size_ - 1; i > index; --i) {
-				new (data_ + i) T(std::move(data_[i - 1]));
-				data_[i - 1].~T();
-			}
-		} else {
-			for(size_t i = size_ - 1; i > index; --i) {
-				new (data_ + i) T(data_[i - 1]);
-				data_[i - 1].~T();
-			}
-		}
-		new (data_ + index) T(value);
-		return pos;
-	}
-	/**
-	 * inserts value at index ind.
-	 * after inserting, this->at(ind) == value
-	 * returns an iterator pointing to the inserted value.
-	 * throw index_out_of_bound if ind > size (in this situation ind can be size because after inserting the size will increase 1.)
-	 */
-	iterator insert(const size_t &ind, const T &value) {
-		return insert(iterator(this, ind), value);
-	}
-	/**
-	 * removes the element at pos.
-	 * return an iterator pointing to the following element.
-	 * If the iterator pos refers the last element, the end() iterator is returned.
-	 */
-	iterator erase(iterator pos) {
-		size_t index = pos.index_;
-		if(index >= size_) throw index_out_of_bound();
-		--size_;
-		data_[index].~T();
-		if(is_move_constructable_) {
-			for(size_t i = index; i < size_; ++i) {
-				new (data_ + i) T(std::move(data_[i + 1]));
-				data_[i + 1].~T();
-			}
-		} else {
-			for(size_t i = index; i < size_; ++i) {
-				new (data_ + i) T(data_[i + 1]);
-				data_[i + 1].~T();
-			}
-		}
-		return pos;
-	}
-	/**
-	 * removes the element with index ind.
-	 * return an iterator pointing to the following element.
-	 * throw index_out_of_bound if ind >= size
-	 */
-	iterator erase(const size_t &ind) {
-		return erase(iterator(this, ind));
-	}
-	/**
-	 * adds an element to the end.
-	 */
-	void push_back(const T &value) {
-		if(size_ == capacity_) reserve(capacity_ << 1); // new capacity may be larger than size_t_max
-		new (data_ + size_) T(value);
-		++size_;
-	}
-	void push_back(T &&value) {
-		if(size_ == capacity_) reserve(capacity_ << 1);
-		new (data_ + size_) T(std::move(value));
-		++size_;
-	}
-	/**
-	 * remove the last element from the end.
-	 * throw container_is_empty if size() == 0
-	 */
-	void pop_back() {
-		if(empty()) throw container_is_empty();
-		--size_;
-		data_[size_].~T();
-	}
+  vector();
+  vector(const vector &);
+  vector(vector &&) noexcept;
+  ~vector();
+  vector &operator=(const vector &);
+  vector &operator=(vector &&);
+  // throw index_out_of_bound if pos is not in [0, size)
+  Tp& at(const size_t &pos);
+  // throw index_out_of_bound if pos is not in [0, size)
+  const Tp& at(const size_t &pos) const;
+  // throw index_out_of_bound if pos is not in [0, size)
+  Tp& operator[](const size_t &pos);
+  // throw index_out_of_bound if pos is not in [0, size)
+  const Tp& operator[](const size_t &pos) const;
+  // throw container_is_empty if size is 0
+  const Tp& front() const;
+  // throw container_is_empty if size is 0
+  const Tp& back() const;
+  iterator begin() const;
+  iterator end() const;
+  const_iterator cbegin() const;
+  const_iterator cend() const;
+  bool empty() const;
+  size_t size() const;
+  void clear();
+  void reserve(const size_t &capacity);
+  // throw invalid_iterator if iter is not valid
+  // throw index_out_of_bound if iter has an index > size
+  iterator insert(const iterator &iter, const Tp &value);
+  // throw invalid_iterator if iter is not valid
+  // throw index_out_of_bound if iter has an index > size
+  iterator insert(const size_t &index, const Tp &value);
+  // throw invalid_iterator if iter is not valid
+  // throw index_out_of_bound if iter has an index >= size
+  iterator erase(const iterator &iter);
+  // throw invalid_iterator if iter is not valid
+  // throw index_out_of_bound if iter has an index >= size
+  iterator erase(const size_t &index);
+  void push_back(const Tp &);
+  void push_back(Tp &&);
+  // throw container_is_empty if size == 0
+  void pop_back();
+
+private:
+  Tp *_data;
+  size_t _left, _right;
+  size_t _capacity;
 };
 
+// vector::iterator
+
+template <class Tp>
+vector<Tp>::iterator::iterator()
+  : _container(nullptr), _index(0) {}
+
+template <class Tp>
+vector<Tp>::iterator::iterator(const vector<Tp> *container, const size_t &index)
+  : _container(container), _index(index) {}
+
+template <class Tp>
+vector<Tp>::iterator::iterator(const iterator &) = default;
+
+template <class Tp>
+typename vector<Tp>::iterator&
+  vector<Tp>::iterator::operator=(const iterator &) = default;
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::iterator::operator+(const differnce_type &diff) const {
+  if(diff < 0) return *this - (-diff);
+  if(_index + diff > _container->size())
+    throw index_out_of_bound{};
+  return iterator{_container, _index + diff};
+}
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::iterator::operator-(const differnce_type &diff) const {
+  if(diff < 0) return *this + (-diff);
+  if(_index < diff)
+    throw index_out_of_bound{};
+  return {_container, _index - diff};
+}
+
+template <class Tp>
+typename vector<Tp>::iterator::differnce_type
+  vector<Tp>::iterator::operator-(const iterator &other) const {
+  if(_container != other._container)
+    throw invalid_iterator{};
+  return static_cast<differnce_type>(_index) - static_cast<differnce_type>(other._index);
+}
+
+template <class Tp>
+typename vector<Tp>::iterator&
+  vector<Tp>::iterator::operator+=(const differnce_type &diff) {
+  if(diff < 0) return *this -= -diff;
+  if(_index + diff > _container->size())
+    throw index_out_of_bound{};
+  _index += diff;
+  return *this;
+}
+
+template <class Tp>
+typename vector<Tp>::iterator&
+  vector<Tp>::iterator::operator-=(const differnce_type &diff) {
+  if(diff < 0) return *this += -diff;
+  if(_index < diff)
+    throw index_out_of_bound{};
+  _index -= diff;
+  return *this;
+}
+
+template <class Tp>
+typename vector<Tp>::iterator&
+  vector<Tp>::iterator::operator++() {
+  return *this += 1;
+}
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::iterator::operator++(int) {
+  iterator tmp = *this;
+  *this += 1;
+  return tmp;
+}
+
+template <class Tp>
+typename vector<Tp>::iterator&
+  vector<Tp>::iterator::operator--() {
+  return *this -= 1;
+}
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::iterator::operator--(int) {
+  iterator tmp = *this;
+  *this -= 1;
+  return tmp;
+}
+
+template <class Tp>
+bool vector<Tp>::iterator::operator==(const iterator &other) const {
+  return _container == other._container && _index == other._index;
+}
+
+template <class Tp>
+bool vector<Tp>::iterator::operator==(const const_iterator &other) const {
+  return _container == other._container && _index == other._index;
+}
+
+template <class Tp>
+bool vector<Tp>::iterator::operator!=(const iterator &other) const {
+  return _container != other._container || _index != other._index;
+}
+
+template <class Tp>
+bool vector<Tp>::iterator::operator!=(const const_iterator &other) const {
+  return _container != other._container || _index != other._index;
+}
+
+template <class Tp>
+Tp& vector<Tp>::iterator::operator*() const {
+  return _container->_data[_container->_left + _index];
+}
+
+template <class Tp>
+Tp* vector<Tp>::iterator::operator->() const {
+  return _container->_data + _container->_left + _index;
+}
+
+
+
+// vector::const_iterator
+
+template <class Tp>
+vector<Tp>::const_iterator::const_iterator()
+  : _container(nullptr), _index(0) {}
+
+template <class Tp>
+vector<Tp>::const_iterator::const_iterator(const vector<Tp> *container, const size_t &index)
+  : _container(container), _index(index) {}
+
+template <class Tp>
+vector<Tp>::const_iterator::const_iterator(const const_iterator &) = default;
+
+template <class Tp>
+vector<Tp>::const_iterator::const_iterator(const iterator &other)
+  : _container(other._container), _index(other._index) {}
+
+template <class Tp>
+typename vector<Tp>::const_iterator&
+  vector<Tp>::const_iterator::operator=(const const_iterator &) = default;
+
+template <class Tp>
+typename vector<Tp>::const_iterator
+  vector<Tp>::const_iterator::operator+(const differnce_type &diff) const {
+  if(diff < 0) return *this - (-diff);
+  if(_index + diff > _container->size())
+    throw index_out_of_bound{};
+  return {_container, _index + diff};
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator
+  vector<Tp>::const_iterator::operator-(const differnce_type &diff) const {
+  if(diff < 0) return *this + (-diff);
+  if(_index < diff)
+    throw index_out_of_bound{};
+  return {_container, _index - diff};
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator::differnce_type
+  vector<Tp>::const_iterator::operator-(const const_iterator &other) const {
+  if(_container != other._container)
+    throw invalid_iterator{};
+  return static_cast<differnce_type>(_index) - static_cast<differnce_type>(other._index);
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator&
+  vector<Tp>::const_iterator::operator+=(const differnce_type &diff) {
+  if(diff < 0) return *this -= -diff;
+  if(_index + diff > _container->size())
+    throw index_out_of_bound{};
+  _index += diff;
+  return *this;
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator&
+  vector<Tp>::const_iterator::operator-=(const differnce_type &diff) {
+  if(diff < 0) return *this += -diff;
+  if(_index < diff)
+    throw index_out_of_bound{};
+  _index -= diff;
+  return *this;
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator&
+  vector<Tp>::const_iterator::operator++() {
+  return *this += 1;
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator
+  vector<Tp>::const_iterator::operator++(int) {
+  iterator tmp = *this;
+  *this += 1;
+  return tmp;
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator&
+  vector<Tp>::const_iterator::operator--() {
+  return *this -= 1;
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator
+  vector<Tp>::const_iterator::operator--(int) {
+  iterator tmp = *this;
+  *this -= 1;
+  return tmp;
+}
+
+template <class Tp>
+bool vector<Tp>::const_iterator::operator==(const const_iterator &other) const {
+  return _container == other._container && _index == other._index;
+}
+
+template <class Tp>
+bool vector<Tp>::const_iterator::operator==(const iterator &other) const {
+  return _container == other._container && _index == other._index;
+}
+
+template <class Tp>
+bool vector<Tp>::const_iterator::operator!=(const const_iterator &other) const {
+  return _container != other._container || _index != other._index;
+}
+
+template <class Tp>
+bool vector<Tp>::const_iterator::operator!=(const iterator &other) const {
+  return _container != other._container || _index != other._index;
+}
+
+template <class Tp>
+const Tp& vector<Tp>::const_iterator::operator*() const {
+  return _container->_data[_container->_left + _index];
+}
+
+template <class Tp>
+const Tp* vector<Tp>::const_iterator::operator->() const {
+  return _container->_data + _container->_left + _index;
+}
+
+
+
+
+// vector
+
+template <class Tp>
+vector<Tp>::vector()
+  : _data(nullptr), _left(0), _right(0), _capacity(0) {}
+
+template <class Tp>
+vector<Tp>::vector(const vector &other): vector() {
+  if(other.empty()) return;
+  _left = other._left;
+  _right = other._right;
+  _capacity = other._capacity;
+  _data = static_cast<Tp*>(operator new(_capacity * sizeof(Tp)));
+  for(size_t i = _left; i < _right; ++i)
+    new(_data + i) Tp(other._data[i]);
+}
+
+template <class Tp>
+vector<Tp>::vector(vector &&other) noexcept: vector() {
+  if(other.empty()) return;
+  _left = other._left;
+  _right = other._right;
+  _capacity = other._capacity;
+  _data = other._data;
+  other._left = 0;
+  other._right = 0;
+  other._capacity = 0;
+  other._data = nullptr;
+}
+
+template <class Tp>
+vector<Tp>::~vector() {
+  clear();
+  operator delete(_data);
+  _data = nullptr;
+  _left = 0;
+  _right = 0;
+  _capacity = 0;
+}
+
+template <class Tp>
+vector<Tp>& vector<Tp>::operator=(const vector &other) {
+  if(this == &other) return *this;
+  clear();
+  reserve(other._capacity);
+  for(size_t i = _left; i < other._right; ++i)
+    new(_data + i) Tp(other._data[i]);
+  _left = other._left;
+  _right = other._right;
+  return *this;
+}
+
+template <class Tp>
+vector<Tp>& vector<Tp>::operator=(vector &&other) {
+  if(this == other) return *this;
+  clear();
+  operator delete(_data);
+  _data = other._data;
+  _left = other._left;
+  _right = other._right;
+  _capacity = other._capacity;
+  other._data = nullptr;
+  other._left = 0;
+  other._right = 0;
+  other._capacity = 0;
+  return *this;
+}
+
+template <class Tp>
+Tp& vector<Tp>::at(const size_t &pos) {
+  if(pos >= size())
+    throw index_out_of_bound{};
+  return _data[_left + pos];
+}
+
+template <class Tp>
+const Tp& vector<Tp>::at(const size_t &pos) const {
+  if(pos >= size())
+    throw index_out_of_bound{};
+  return _data[_left + pos];
+}
+
+template <class Tp>
+Tp& vector<Tp>::operator[](const size_t &pos) {
+  if(pos >= size())
+    throw index_out_of_bound{};
+  return _data[_left + pos];
+}
+
+template <class Tp>
+const Tp& vector<Tp>::operator[](const size_t &pos) const {
+  if(pos >= size())
+    throw index_out_of_bound{};
+  return _data[_left + pos];
+}
+
+template <class Tp>
+const Tp& vector<Tp>::front() const {
+  if(empty())
+    throw container_is_empty{};
+  return _data[_left];
+}
+
+template <class Tp>
+const Tp& vector<Tp>::back() const {
+  if(empty())
+    throw container_is_empty{};
+  return _data[_right - 1];
+}
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::begin() const {
+  return iterator{this, 0};
+}
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::end() const {
+  return iterator{this, size()};
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator
+  vector<Tp>::cbegin() const {
+  return const_iterator{this, 0};
+}
+
+template <class Tp>
+typename vector<Tp>::const_iterator
+  vector<Tp>::cend() const {
+  return const_iterator{this, size()};
+}
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::insert(const iterator &iter, const Tp &value) {
+  if(iter._container != this)
+    throw invalid_iterator{};
+  return insert(iter._index, value);
+}
+
+template <class Tp>
+typename vector<Tp>::iterator
+  vector<Tp>::insert(const size_t &index, const Tp &value) {
+  if(index > size())
+    throw index_out_of_bound{};
+  if(index > size() / 2) {
+    if(_right == _capacity)
+      reserve((_capacity + 1) * 2);
+    ++_right;
+    for(size_t i = _right - 1; i > _left + index; --i)
+      new (_data + i) Tp(std::move(_data[i - 1]));
+  } else {
+    if(_left == 0)
+      reserve((_capacity + 1) * 2);
+    --_left;
+    for(size_t i = _left; i < _left + index; ++i)
+      new(_data + i) Tp(std::move(_data[i + 1]));
+  }
+  new (_data + _left + index) Tp(value);
+  return iterator{this, index};
+}
+
+template <class Tp>
+typename vector<Tp>::iterator vector<Tp>::erase(const iterator &iter) {
+  if(iter._container != this)
+    throw invalid_iterator{};
+  return erase(iter._index);
+}
+
+template <class Tp>
+typename vector<Tp>::iterator vector<Tp>::erase(const size_t &index) {
+  if(index >= size())
+    throw index_out_of_bound{};
+  _data[index].~Tp();
+  if(index > size() / 2) {
+    for(size_t i = _left + index; i < _right - 1; ++i)
+      new (_data + i) Tp(std::move(_data[i + 1]));
+    --_right;
+  } else {
+    for(size_t i = _left + index; i > _left; --i)
+      new (_data + i) Tp(std::move(_data[i - 1]));
+    ++_left;
+  }
+  return {this, index};
+}
+
+template <class Tp>
+void vector<Tp>::push_back(const Tp &value) {
+  if(_right == _capacity) reserve((_capacity + 1) * 2);
+  new (_data + _right) Tp(value);
+  ++_right;
+}
+
+template <class Tp>
+void vector<Tp>::push_back(Tp &&value) {
+  if(_right == _capacity) reserve((_capacity + 1) * 2);
+  new (_data + _right) Tp(value);
+  ++_right;
+}
+
+template <class Tp>
+void vector<Tp>::pop_back() {
+  if(empty())
+    throw container_is_empty{};
+  --_right;
+  _data[_right].~Tp();
+}
+
+template <class Tp>
+bool vector<Tp>::empty() const {
+  return _right - _left == 0;
+}
+
+template <class Tp>
+size_t vector<Tp>::size() const {
+  return _right - _left;
+}
+
+template <class Tp>
+void vector<Tp>::clear() {
+  for(size_t i = _left; i < _right; ++i)
+    _data[i].~Tp();
+  _left = _right = _capacity / 2;
+}
+
+template <class Tp>
+void vector<Tp>::reserve(const size_t &capacity) {
+  if(_capacity >= capacity) return;
+  Tp *new_data = static_cast<Tp*>(operator new(capacity * sizeof(Tp)));
+  size_t old_size = size();
+  size_t new_left = capacity / 2 - old_size / 2;
+  for(size_t i = 0; i < old_size; ++i)
+    new (new_data + new_left + i) Tp(std::move(_data[_left + i]));
+  operator delete(_data);
+  _left = new_left;
+  _right = new_left + old_size;
+  _data = new_data;
+  _capacity = capacity;
+}
 
 }
 
